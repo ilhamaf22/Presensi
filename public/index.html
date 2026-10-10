@@ -3,110 +3,154 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b2d57">
-  <title>Presensi — BPS Sulawesi Utara</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b2d57'/%3E%3Crect x='7' y='14' width='4' height='11' rx='2' fill='%232a7de1'/%3E%3Crect x='14' y='8' width='4' height='17' rx='2' fill='%232ead4a'/%3E%3Crect x='21' y='11' width='4' height='14' rx='2' fill='%23f7931e'/%3E%3C/svg%3E">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#061a33">
+  <title>Undian — BPS Sulawesi Utara</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23f7931e'/%3E%3Ccircle cx='16' cy='18' r='9' fill='none' stroke='%23061a33' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/random.css">
 </head>
-<body>
+<body class="admin">
   <div class="backdrop" aria-hidden="true"><div class="bars"><i></i><i></i><i></i></div></div>
 
-  <main class="wrap">
-    <header class="hero">
-      <div class="org"><span class="tri" aria-hidden="true"><i></i><i></i><i></i></span><span id="penyelenggara">BPS Provinsi Sulawesi Utara</span></div>
-      <h1 id="judul">Presensi <span>Kegiatan</span></h1>
-      <p>Isi data di bawah. Setelah terkirim, Anda mendapat barcode dan kode undian 6 digit.</p>
+  <!-- LOGIN -->
+  <section id="viewLogin" class="login" hidden>
+    <form class="card login-card" id="loginForm">
+      <div class="org-mini"><span class="tri" aria-hidden="true"><i></i><i></i><i></i></span><span class="org-name">BPS Provinsi Sulawesi Utara</span></div>
+      <h1>Masuk Admin</h1>
+      <p class="muted">Halaman undian hanya untuk panitia.</p>
+      <div class="alert" id="loginAlert" role="alert" hidden></div>
+      <div class="field"><label for="email">Email</label><input class="input" id="email" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="password">Kata sandi</label><input class="input" id="password" type="password" autocomplete="current-password" required></div>
+      <button class="btn btn-primary btn-block" id="loginBtn" type="submit">Masuk</button>
+      <p class="muted small" id="demoLoginHint" hidden>Mode demo: email bebas, kata sandi <b>admin</b>.</p>
+    </form>
+  </section>
+
+  <!-- PANGGUNG -->
+  <section id="viewStage" class="stage-wrap" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <span class="tri" aria-hidden="true"><i></i><i></i><i></i></span>
+        <div>
+          <div class="brand-org org-name">BPS Provinsi Sulawesi Utara</div>
+          <div class="brand-title" id="judulUndian">Undian Doorprize</div>
+        </div>
+      </div>
+      <div class="stats" aria-live="polite">
+        <div class="stat"><b id="sHadir">0</b><span>Hadir</span></div>
+        <div class="stat in"><b id="sPool">0</b><span>Dalam undian</span></div>
+        <div class="stat out"><b id="sKeluar">0</b><span>Dikeluarkan</span></div>
+      </div>
+      <div class="tools">
+        <button class="tbtn" id="bPeserta" type="button" title="Data peserta"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg><span>Peserta</span></button>
+        <button class="tbtn" id="bUnduh" type="button" title="Unduh data presensi (.xlsx)"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg><span>Unduh .xlsx</span></button>
+        <button class="tbtn" id="bFull" type="button" title="Layar penuh"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Layar penuh</span></button>
+        <button class="tbtn" id="bKeluar" type="button" title="Keluar"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span>Keluar</span></button>
+      </div>
     </header>
 
-    <div class="demo-banner" id="demoBanner" hidden>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
-      <div><b>Mode demo.</b> Database belum disambungkan, data hanya tersimpan di browser ini. Isi <code>js/config.js</code> dengan kunci Supabase sebelum dipakai.</div>
+    <div class="demo-tools" id="demoTools" hidden>
+      <span><b>Mode demo</b> — data hanya di browser ini.</span>
+      <button class="tbtn sm" id="bContoh" type="button">+ 30 peserta contoh</button>
+      <button class="tbtn sm" id="bReset" type="button">Reset demo</button>
     </div>
 
-    <!-- FORM -->
-    <section id="viewForm" hidden>
-      <form class="card" id="form" novalidate>
-        <div class="alert" id="formAlert" role="alert" hidden></div>
-
-        <div class="field" id="fNama">
-          <label for="nama">Nama lengkap <span class="hint">tanpa singkatan &amp; gelar</span></label>
-          <input class="input" id="nama" name="nama" autocomplete="name" autocapitalize="words" spellcheck="false" maxlength="80" placeholder="cth. Muhammad Ilham Fauzi">
-          <div class="err" id="eNama"></div>
+    <main class="stage">
+      <div class="bowl-area">
+        <div class="bowl" id="bowl">
+          <div class="bowl-inner" id="slips"></div>
+          <svg class="bowl-glass" viewBox="0 0 400 400" aria-hidden="true">
+            <defs>
+              <radialGradient id="gGlass" cx="35%" cy="30%" r="75%">
+                <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+                <stop offset=".55" stop-color="#9cc7ff" stop-opacity=".06"/>
+                <stop offset="1" stop-color="#9cc7ff" stop-opacity=".18"/>
+              </radialGradient>
+              <linearGradient id="gRim" x1="0" x2="1">
+                <stop offset="0" stop-color="#cfe3ff" stop-opacity=".55"/>
+                <stop offset=".5" stop-color="#fff" stop-opacity=".9"/>
+                <stop offset="1" stop-color="#cfe3ff" stop-opacity=".55"/>
+              </linearGradient>
+            </defs>
+            <circle cx="200" cy="215" r="170" fill="url(#gGlass)" stroke="rgba(207,227,255,.55)" stroke-width="3"/>
+            <ellipse cx="200" cy="58" rx="98" ry="18" fill="rgba(6,26,51,.55)" stroke="url(#gRim)" stroke-width="5"/>
+            <path d="M88 120 A150 150 0 0 0 80 260" stroke="#fff" stroke-opacity=".38" stroke-width="10" stroke-linecap="round" fill="none"/>
+            <path d="M104 290 A150 150 0 0 0 128 322" stroke="#fff" stroke-opacity=".22" stroke-width="7" stroke-linecap="round" fill="none"/>
+            <ellipse cx="200" cy="392" rx="90" ry="8" fill="rgba(0,0,0,.35)"/>
+          </svg>
+          <div class="bowl-count"><b id="bowlCount">0</b> kertas</div>
         </div>
+      </div>
 
-        <div class="field" id="fKategori">
-          <div class="label" id="lKategori">Kategori</div>
-          <div class="seg" role="radiogroup" aria-labelledby="lKategori">
-            <input type="radio" name="kategori" id="k1" value="Pegawai">
-            <label for="k1"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>Pegawai</label>
-            <input type="radio" name="kategori" id="k2" value="Magang">
-            <label for="k2"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/></svg>Magang</label>
-            <input type="radio" name="kategori" id="k3" value="Outsourcing">
-            <label for="k3"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg>Outsourcing</label>
-          </div>
-          <div class="err" id="eKategori"></div>
-        </div>
+      <button class="draw-btn" id="bAmbil" type="button">
+        <span class="draw-label">Ambil Acak</span>
+        <span class="draw-sub">tekan spasi</span>
+      </button>
+    </main>
 
-        <div class="field" id="fSatker">
-          <label for="satker">Satuan kerja <span class="hint">BPS provinsi/kabupaten/kota</span></label>
-          <select class="select" id="satker" name="satker" required>
-            <option value="" disabled selected>Pilih satuan kerja…</option>
-          </select>
-          <div class="err" id="eSatker"></div>
-        </div>
+    <aside class="history">
+      <h3>Riwayat undian</h3>
+      <ol id="riwayat"><li class="empty">Belum ada yang diundi.</li></ol>
+    </aside>
+  </section>
 
-        <button class="btn btn-primary btn-block" id="kirim" type="submit">
-          <span>Kirim Presensi</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+  <!-- HASIL -->
+  <div class="reveal" id="reveal" role="dialog" aria-modal="true" aria-labelledby="rNama" hidden>
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <div class="reveal-card" id="revealCard">
+      <div class="reveal-tag">Terpilih</div>
+      <div class="r-digits" id="rKode" aria-label="Kode"></div>
+      <div class="r-nama" id="rNama"></div>
+      <div class="r-meta"><span class="chip blue" id="rSatker"></span><span class="chip green" id="rKategori"></span><span class="chip" id="rKe" hidden></span></div>
+      <div class="r-status" id="rStatus" hidden>
+        <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+        <span>Dikeluarkan dari undian — tetap tercatat di data presensi.</span>
+        <button type="button" class="link" id="rUndo">Batalkan</button>
+      </div>
+      <div class="r-actions" id="rActions">
+        <button class="btn btn-danger" id="rHapus" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+          Hapus dari Undian
         </button>
+        <button class="btn btn-ghost-dark" id="rTutup" type="button">Tetap di Undian</button>
+      </div>
+      <button class="btn btn-primary btn-block" id="rLagi" type="button" hidden>Ambil Berikutnya</button>
+    </div>
+  </div>
 
-        <div class="form-note">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
-          <span>Satu perangkat hanya untuk satu orang. Pastikan data sudah benar karena presensi tidak dapat diubah.</span>
+  <!-- PESERTA -->
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="sheet-panel">
+      <div class="sheet-head">
+        <h2 id="sheetTitle">Data Presensi</h2>
+        <button class="icon-x" id="sheetClose" type="button" aria-label="Tutup">×</button>
+      </div>
+      <div class="sheet-tools">
+        <input class="input" id="cari" type="search" placeholder="Cari nama, satker, atau kode…">
+        <div class="filters" role="tablist">
+          <button type="button" class="fbtn on" data-f="all">Semua</button>
+          <button type="button" class="fbtn" data-f="in">Dalam undian</button>
+          <button type="button" class="fbtn" data-f="out">Dikeluarkan</button>
         </div>
-      </form>
-    </section>
+      </div>
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead><tr><th>#</th><th>Nama</th><th>Kategori</th><th>Satker</th><th>Kode</th><th>Waktu</th><th>Undian</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="sheet-foot"><span id="sheetInfo"></span><button class="btn btn-dark" id="bUnduh2" type="button">Unduh .xlsx</button></div>
+    </div>
+  </div>
 
-    <!-- TIKET -->
-    <section id="viewTiket" hidden>
-      <article class="ticket" aria-labelledby="tNama">
-        <div class="ticket-head">
-          <span class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>Presensi tercatat</span>
-          <h2 id="tAcara">Presensi Kegiatan</h2>
-          <div class="sub" id="tOrg">BPS Provinsi Sulawesi Utara</div>
-        </div>
-        <div class="ticket-perf" aria-hidden="true"></div>
-        <div class="ticket-body">
-          <div class="qr" id="qr" role="img" aria-label="Barcode presensi"></div>
-          <div class="t-nama" id="tNama"></div>
-          <div class="chips"><span class="chip blue" id="tSatker"></span><span class="chip green" id="tKategori"></span></div>
-          <div class="kode-label">Kode Undian</div>
-          <div class="digits" id="tKode" aria-label="Kode undian"></div>
-          <div class="t-time" id="tWaktu"></div>
-        </div>
-        <div class="ticket-actions">
-          <button class="btn btn-dark btn-block" id="unduh" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
-            Unduh Barcode
-          </button>
-        </div>
-      </article>
-      <p class="keep">Simpan atau tangkap layar tiket ini. Kode undian dipakai saat pengundian doorprize.</p>
-    </section>
-
-    <section id="viewLoading" style="text-align:center;color:rgba(255,255,255,.7);padding:40px 0"><span class="spin" style="display:inline-block"></span></section>
-
-    <div class="foot">© <span id="th"></span> BPS Provinsi Sulawesi Utara</div>
-  </main>
-
-  <script src="vendor/qrcode.js"></script>
-  <script src="vendor/qrcode_UTF8.js"></script>
-  <script src="vendor/supabase.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/shared.js"></script>
-  <script src="js/presensi.js"></script>
+  <script src="/vendor/supabase.js"></script>
+  <script src="/vendor/fflate.js"></script>
+  <script src="/js/config.js"></script>
+  <script src="/js/shared.js"></script>
+  <script src="/js/random.js"></script>
 </body>
 </html>
