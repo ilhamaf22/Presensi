@@ -4,7 +4,6 @@
   const $ = (id) => document.getElementById(id);
 
   let DATA = [];          // semua presensi
-  let TERPILIH = null;    // hasil undian yang sedang tampil
   let SIBUK = false;
   let filter = 'all';
 
@@ -50,14 +49,17 @@
   }
   const dalamUndian = () => DATA.filter((x) => x.dalam_undian);
 
+  const TOMBOL = [['bAmbil', 1], ['bAmbil3', 3], ['bAmbil5', 5]];
   function renderStat() {
     const n = dalamUndian().length;
     $('sHadir').textContent = DATA.length;
     $('sPool').textContent = n;
     $('sKeluar').textContent = DATA.length - n;
     $('bowlCount').textContent = n;
-    $('bAmbil').disabled = n === 0;
-    $('bAmbil').querySelector('.draw-sub').textContent = n === 0 ? 'undian kosong' : 'tekan spasi';
+    TOMBOL.forEach(([id, k]) => {
+      const b = $(id); b.disabled = SIBUK || n === 0;
+      b.querySelector('.draw-sub').textContent = n === 0 ? 'undian kosong' : (k === 1 ? 'tekan spasi' : `tombol ${k}`);
+    });
   }
 
   // Kertas di dalam fishbowl (maks 70 agar tetap ringan)
@@ -97,17 +99,24 @@
   // ---------------- Undian ----------------
   const jeda = (ms) => new Promise((r) => setTimeout(r, ms));
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const IKON_HAPUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
+  const IKON_OK = '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>';
 
-  async function ambil() {
+  let HASIL = [];          // pemenang yang sedang tampil
+  let MEMBUKA = false;     // sedang "Buka Semua"
+
+  async function ambil(n) {
+    n = n || 1;
     if (SIBUK || !dalamUndian().length) return;
-    SIBUK = true;
-    const btn = $('bAmbil'); btn.disabled = true; btn.classList.add('press');
+    SIBUK = true; renderStat();
+    const btn = $(TOMBOL.find((t) => t[1] === n)[0]); btn.classList.add('press');
     const bowl = $('bowl');
     acakGerak(); bowl.classList.add('mixing');
     try {
-      const [hasil] = await Promise.all([api.ambilAcak(), jeda(reduceMotion ? 200 : 2200)]);
+      const [hasil] = await Promise.all([api.ambilAcakN(n), jeda(reduceMotion ? 200 : 2200)]);
       bowl.classList.remove('mixing');
-      if (!reduceMotion) await terbangkan();
+      if (!reduceMotion) await terbangkan(hasil.length);
+      if (hasil.length < n) toast(`Peserta tersisa hanya ${hasil.length}, jadi yang terambil ${hasil.length}.`, 'warn');
       tampilkanHasil(hasil);
     } catch (err) {
       bowl.classList.remove('mixing');
@@ -118,58 +127,117 @@
       SIBUK = false; renderStat();
     }
   }
-  $('bAmbil').addEventListener('click', ambil);
+  TOMBOL.forEach(([id, k]) => $(id).addEventListener('click', () => ambil(k)));
 
-  async function terbangkan() {
+  async function terbangkan(jumlah) {
     const r = $('bowl').getBoundingClientRect();
-    const f = document.createElement('div'); f.className = 'flyer';
-    document.body.appendChild(f);
     const sx = r.left + r.width / 2 - 30, sy = r.top + r.height * .55;
     const ex = window.innerWidth / 2 - 30, ey = window.innerHeight / 2 - 17;
-    const a = f.animate([
-      { transform: `translate(${sx}px, ${sy}px) rotate(-20deg) scale(.6)` },
-      { transform: `translate(${sx + 20}px, ${r.top - 60}px) rotate(200deg) scale(1)`, offset: .45 },
-      { transform: `translate(${ex}px, ${ey}px) rotate(720deg) scale(4)`, opacity: 1, offset: .9 },
-      { transform: `translate(${ex}px, ${ey}px) rotate(720deg) scale(6)`, opacity: 0 },
-    ], { duration: 900, easing: 'cubic-bezier(.4,0,.2,1)' });
-    await a.finished.catch(() => {});
-    f.remove();
+    const anim = Array.from({ length: jumlah }, (_, i) => {
+      const f = document.createElement('div'); f.className = 'flyer';
+      document.body.appendChild(f);
+      const dx = (i - (jumlah - 1) / 2) * 70;
+      const a = f.animate([
+        { transform: `translate(${sx}px, ${sy}px) rotate(-20deg) scale(.6)`, opacity: 1 },
+        { transform: `translate(${sx + 20 + dx}px, ${r.top - 60}px) rotate(200deg) scale(1)`, offset: .45 },
+        { transform: `translate(${ex + dx}px, ${ey}px) rotate(720deg) scale(3.5)`, opacity: 1, offset: .9 },
+        { transform: `translate(${ex + dx}px, ${ey}px) rotate(720deg) scale(5)`, opacity: 0 },
+      ], { duration: 900, delay: i * 110, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'backwards' });
+      return a.finished.catch(() => {}).then(() => f.remove());
+    });
+    await Promise.all(anim);
   }
 
-  async function tampilkanHasil(h) {
-    TERPILIH = h;
-    const card = $('revealCard');
-    card.classList.remove('shown');
-    $('rNama').textContent = h.nama;
-    $('rSatker').textContent = 'BPS ' + h.satker;
-    $('rKategori').textContent = h.kategori;
-    $('rKe').hidden = !(h.jumlah_terpilih > 1);
-    $('rKe').textContent = `Terpilih ke-${h.jumlah_terpilih}`;
-    $('rStatus').hidden = true; $('rActions').hidden = false; $('rLagi').hidden = true;
-    const kode = String(h.kode);
-    $('rKode').innerHTML = kode.split('').map(() => '<span class="rolling">0</span>').join('');
-    $('rKode').setAttribute('aria-label', 'Kode ' + kode);
-    $('reveal').hidden = false;
+  // ----- tampilan hasil (kotak tertutup) -----
+  const elW = (i) => $('rList').querySelector(`.w[data-i="${i}"]`);
+  const terbukaSemua = (h) => h.buka.every(Boolean);
 
-    const spans = [...$('rKode').children];
-    if (reduceMotion) {
-      spans.forEach((s, i) => { s.textContent = kode[i]; s.className = ''; });
-    } else {
-      const roll = setInterval(() => spans.forEach((s) => { if (s.classList.contains('rolling')) s.textContent = Math.floor(Math.random() * 10); }), 50);
-      for (let i = 0; i < spans.length; i++) {
-        await jeda(i === 0 ? 450 : 230);
-        spans[i].textContent = kode[i]; spans[i].className = 'landed';
-      }
-      clearInterval(roll);
-    }
-    await jeda(150);
-    card.classList.add('shown');
-    konfeti();
-    $('rHapus').focus();
+  function tampilkanHasil(list) {
+    HASIL = list.map((h) => ({ ...h, kode: String(h.kode).padStart(6, '0'), buka: [false, false, false, false, false, false], keluar: false }));
+    const multi = HASIL.length > 1;
+    $('revealCard').classList.toggle('multi', multi);
+    $('rJudul').textContent = multi ? `${HASIL.length} Terpilih` : 'Terpilih';
+    $('rList').innerHTML = HASIL.map((h, i) => `
+      <article class="w" data-i="${i}">
+        ${multi ? `<div class="w-no" aria-hidden="true">${i + 1}</div>` : ''}
+        <div class="r-digits" role="group" aria-label="Kode${multi ? ' pemenang ' + (i + 1) : ''}">
+          ${[0, 1, 2, 3, 4, 5].map((d) => `<button type="button" class="dg covered" data-d="${d}" aria-label="Buka angka ke-${d + 1}${multi ? ' pemenang ' + (i + 1) : ''}"><span>?</span></button>`).join('')}
+        </div>
+        <div class="w-info">
+          <div class="r-nama"><span class="ph"></span></div>
+          <div class="r-meta"><span class="ph sm"></span>${multi ? '' : '<span class="ph sm"></span>'}</div>
+        </div>
+        <div class="w-act"></div>
+      </article>`).join('');
+    perbaruiKaki();
+    $('reveal').hidden = false;
+    const pertama = $('rList').querySelector('.dg.covered'); if (pertama) pertama.focus({ preventScroll: true });
+
     // perbarui data lokal & riwayat
-    const row = DATA.find((x) => x.id === h.id);
-    if (row) { row.jumlah_terpilih = h.jumlah_terpilih; row.terakhir_terpilih = new Date().toISOString(); }
+    const t = new Date().toISOString();
+    HASIL.forEach((h) => { const row = DATA.find((x) => x.id === h.id); if (row) { row.jumlah_terpilih = h.jumlah_terpilih; row.terakhir_terpilih = t; } });
     api.riwayat().then(renderRiwayat).catch(() => {});
+  }
+
+  function bukaDigit(i, d, diam) {
+    const h = HASIL[i]; if (!h || h.buka[d]) return false;
+    h.buka[d] = true;
+    const b = elW(i).querySelector(`.dg[data-d="${d}"]`);
+    b.classList.remove('covered'); b.classList.add('open');
+    b.innerHTML = `<span>${esc(h.kode[d])}</span>`;
+    b.setAttribute('aria-label', `Angka ke-${d + 1}: ${h.kode[d]}`);
+    b.tabIndex = -1;
+    if (terbukaSemua(h)) selesaiPemenang(i, diam);
+    perbaruiKaki();
+    return true;
+  }
+
+  function selesaiPemenang(i, diam) {
+    const h = HASIL[i], el = elW(i);
+    el.classList.add('shown');
+    el.querySelector('.r-nama').textContent = h.nama;
+    el.querySelector('.r-meta').innerHTML = `<span class="chip blue">BPS ${esc(h.satker)}</span><span class="chip green">${esc(h.kategori)}</span>` +
+      (h.jumlah_terpilih > 1 ? `<span class="chip">Terpilih ke-${h.jumlah_terpilih}</span>` : '');
+    renderAksi(i);
+    if (!diam) {
+      const r = el.getBoundingClientRect();
+      konfeti(HASIL.length > 1 ? { x: r.left + r.width * .3, y: r.top + r.height / 2, jumlah: 90 } : null);
+    }
+  }
+
+  function renderAksi(i) {
+    const h = HASIL[i], el = elW(i), act = el.querySelector('.w-act');
+    el.classList.toggle('keluar', h.keluar);
+    act.innerHTML = h.keluar
+      ? `<div class="r-status">${IKON_OK}<span>Dikeluarkan dari undian</span><button type="button" class="link" data-act="undo">Batalkan</button></div>`
+      : `<button class="btn btn-danger" type="button" data-act="hapus">${IKON_HAPUS} Hapus dari Undian</button>`;
+  }
+
+  function perbaruiKaki() {
+    const masihTertutup = HASIL.some((h) => !terbukaSemua(h));
+    const multi = HASIL.length > 1;
+    $('rBukaSemua').hidden = !masihTertutup;
+    $('rBukaSemua').disabled = MEMBUKA;
+    $('rHint').hidden = !masihTertutup;
+    $('rHint').textContent = multi ? 'Klik kotak untuk membuka angka tiap pemenang' : 'Klik kotak untuk membuka angka';
+    $('rHapusSemua').hidden = !(multi && !masihTertutup && HASIL.some((h) => !h.keluar));
+  }
+
+  async function bukaSemua() {
+    if (MEMBUKA) return;
+    MEMBUKA = true; perbaruiKaki();
+    for (let i = 0; i < HASIL.length; i++) {
+      for (let d = 0; d < 6; d++) {
+        if (bukaDigit(i, d, true) && !reduceMotion) await jeda(HASIL.length > 1 ? 60 : 160);
+        if ($('reveal').hidden) { MEMBUKA = false; return; }
+      }
+    }
+    MEMBUKA = false; perbaruiKaki();
+    konfeti();
+    const b = $('rList').querySelector('[data-act="hapus"]'); if (b) b.focus({ preventScroll: true });
+  }
+  function bukaBerikutnya() {
+    for (let i = 0; i < HASIL.length; i++) for (let d = 0; d < 6; d++) if (!HASIL[i].buka[d]) { bukaDigit(i, d); return; }
   }
 
   async function atur(id, dalam) {
@@ -177,42 +245,56 @@
     const row = DATA.find((x) => x.id === id);
     if (row) { row.dalam_undian = dalam; row.dikeluarkan_pada = dalam ? null : new Date().toISOString(); }
     renderStat(); renderSlips();
-    api.riwayat().then(renderRiwayat).catch(() => {});
     if (!$('sheet').hidden) renderTabel();
   }
 
-  $('rHapus').addEventListener('click', async () => {
-    if (!TERPILIH) return;
-    const b = $('rHapus'); b.disabled = true;
+  $('rList').addEventListener('click', async (e) => {
+    const w = e.target.closest('.w'); if (!w) return;
+    const i = Number(w.dataset.i);
+    const dg = e.target.closest('.dg.covered');
+    if (dg) { bukaDigit(i, Number(dg.dataset.d)); return; }
+    const aksi = e.target.closest('[data-act]'); if (!aksi) return;
+    aksi.disabled = true;
     try {
-      await atur(TERPILIH.id, false);
-      $('rActions').hidden = true; $('rStatus').hidden = false;
-      $('rLagi').hidden = dalamUndian().length === 0; $('rLagi').focus();
-      if (!dalamUndian().length) toast('Semua peserta sudah dikeluarkan dari undian.', 'warn');
-    } catch (err) { toast(pesanError(err), 'err'); } finally { b.disabled = false; }
+      const keluar = aksi.dataset.act === 'hapus';
+      await atur(HASIL[i].id, !keluar);
+      HASIL[i].keluar = keluar; renderAksi(i); perbaruiKaki();
+      if (!keluar) toast('Dikembalikan ke undian.', 'ok');
+      api.riwayat().then(renderRiwayat).catch(() => {});
+    } catch (err) { toast(pesanError(err), 'err'); aksi.disabled = false; }
   });
-  $('rUndo').addEventListener('click', async () => {
-    if (!TERPILIH) return;
+
+  $('rBukaSemua').addEventListener('click', bukaSemua);
+  $('rHapusSemua').addEventListener('click', async () => {
+    const b = $('rHapusSemua'); b.disabled = true;
     try {
-      await atur(TERPILIH.id, true);
-      $('rActions').hidden = false; $('rStatus').hidden = true; $('rLagi').hidden = true;
-      toast('Dikembalikan ke undian.', 'ok');
+      for (let i = 0; i < HASIL.length; i++) {
+        if (HASIL[i].keluar) continue;
+        await atur(HASIL[i].id, false);
+        HASIL[i].keluar = true; renderAksi(i);
+      }
+      toast('Semua pemenang dikeluarkan dari undian.', 'ok');
+      api.riwayat().then(renderRiwayat).catch(() => {});
     } catch (err) { toast(pesanError(err), 'err'); }
+    finally { b.disabled = false; perbaruiKaki(); }
   });
-  function tutupHasil() { $('reveal').hidden = true; TERPILIH = null; stopKonfeti(); $('bAmbil').focus(); }
+
+  function tutupHasil() { $('reveal').hidden = true; HASIL = []; MEMBUKA = false; stopKonfeti(); $('bAmbil').focus(); }
   $('rTutup').addEventListener('click', tutupHasil);
-  $('rLagi').addEventListener('click', () => { tutupHasil(); setTimeout(ambil, 150); });
+  $('rX').addEventListener('click', tutupHasil);
+  $('reveal').addEventListener('click', (e) => { if (e.target === $('reveal') || e.target.id === 'confetti') tutupHasil(); });
 
   // ---------------- Konfeti ----------------
   let rafK = null;
-  function konfeti() {
+  function konfeti(asal) {
     if (reduceMotion) return;
+    const ox = asal ? asal.x : innerWidth / 2, oy = asal ? asal.y : innerHeight * .42;
     const cv = $('confetti'); const ctx = cv.getContext('2d');
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; ctx.scale(dpr, dpr);
     const warna = ['#2a7de1', '#2ead4a', '#f7931e', '#ffffff', '#ffd166'];
-    const P = Array.from({ length: 180 }, () => ({
-      x: innerWidth / 2 + acak(-80, 80), y: innerHeight * .42, vx: acak(-11, 11), vy: acak(-17, -5),
+    const P = Array.from({ length: (asal && asal.jumlah) || 180 }, () => ({
+      x: ox + acak(-80, 80), y: oy, vx: acak(-11, 11), vy: acak(-17, -5),
       w: acak(6, 12), h: acak(8, 16), r: acak(0, 6), vr: acak(-.3, .3), c: warna[Math.floor(Math.random() * warna.length)], life: 0,
     }));
     const t0 = performance.now();
@@ -286,12 +368,19 @@
     if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {});
   });
   document.addEventListener('keydown', (e) => {
-    const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement && document.activeElement.tagName);
+    const el = document.activeElement;
+    const typing = /INPUT|TEXTAREA|SELECT/.test(el && el.tagName);
+    const diTombol = el && el.tagName === 'BUTTON';
     if (e.key === 'Escape') { if (!$('reveal').hidden) tutupHasil(); else if (!$('sheet').hidden) tutupSheet(); return; }
-    if ((e.code === 'Space' || e.key === 'Enter') && !typing && $('reveal').hidden && $('sheet').hidden && !$('viewStage').hidden) {
-      if (document.activeElement && document.activeElement.tagName === 'BUTTON' && document.activeElement.id !== 'bAmbil') return;
-      e.preventDefault(); ambil();
+    if (!$('reveal').hidden) {
+      // Spasi = buka kotak berikutnya (kalau fokus sedang di kotak, spasi membuka kotak itu)
+      if (e.code === 'Space' && !(diTombol && !el.classList.contains('open'))) { e.preventDefault(); bukaBerikutnya(); }
+      return;
     }
+    if (typing || !$('sheet').hidden || $('viewStage').hidden) return;
+    if ((e.code === 'Space' || e.key === 'Enter') && !(diTombol && !el.id.startsWith('bAmbil'))) { e.preventDefault(); ambil(1); }
+    else if (e.key === '3') { e.preventDefault(); ambil(3); }
+    else if (e.key === '5') { e.preventDefault(); ambil(5); }
   });
   if (DEMO) {
     $('bContoh').addEventListener('click', async () => { const n = await api.isiContoh(30); toast(`${n} peserta contoh ditambahkan.`, 'ok'); muat(); });

@@ -22,6 +22,7 @@
     GAGAL_MEMBUAT_KODE: 'Gagal membuat kode unik. Silakan coba lagi.',
     BUKAN_ADMIN: 'Akun ini bukan admin.',
     UNDIAN_KOSONG: 'Tidak ada lagi peserta di dalam undian.',
+    JUMLAH_TIDAK_VALID: 'Jumlah pemenang tidak valid.',
     DATA_TIDAK_DITEMUKAN: 'Data tidak ditemukan.',
     LOGIN_GAGAL: 'Email atau kata sandi salah.',
     JARINGAN: 'Koneksi bermasalah. Periksa internet lalu coba lagi.',
@@ -137,7 +138,7 @@
   function supabaseBackend() {
     if (KUNCI_RAHASIA) {
       const gagal = async () => { throw new Error('KUNCI_SALAH'); };
-      return { demo: false, daftar: gagal, tiketPerangkat: gagal, sesiAdmin: gagal, login: gagal, logout: async () => {}, ambilAcak: gagal, aturUndian: gagal, semuaPresensi: gagal, riwayat: gagal };
+      return { demo: false, daftar: gagal, tiketPerangkat: gagal, sesiAdmin: gagal, login: gagal, logout: async () => {}, ambilAcak: gagal, ambilAcakN: gagal, aturUndian: gagal, semuaPresensi: gagal, riwayat: gagal };
     }
     const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
       auth: { persistSession: true, storageKey: 'presensi_bps_sulut_admin' },
@@ -166,6 +167,7 @@
       },
       async logout() { await sb.auth.signOut(); },
       async ambilAcak() { return satu(await sb.rpc('ambil_acak')); },
+      async ambilAcakN(n) { const r = await sb.rpc('ambil_acak_n', { p_jumlah: n }); if (r.error) throw r.error; return r.data || []; },
       async aturUndian(id, dalam) { const r = await sb.rpc('atur_undian', { p_id: id, p_dalam_undian: dalam }); if (r.error) throw r.error; },
       async semuaPresensi() {
         const out = [];
@@ -182,7 +184,7 @@
       async riwayat() {
         const r = await sb.from('riwayat_undian')
           .select('id,diambil_pada,presensi:presensi_id(id,nama,satker,kode,dalam_undian)')
-          .order('diambil_pada', { ascending: false }).limit(50);
+          .order('diambil_pada', { ascending: false }).order('id', { ascending: false }).limit(50);
         if (r.error) throw r.error;
         return r.data;
       },
@@ -235,6 +237,17 @@
         db.r.push({ id: db.r.length + 1, presensi_id: x.id, diambil_pada: x.terakhir_terpilih });
         save(db);
         return { id: x.id, nama: x.nama, kategori: x.kategori, satker: x.satker, kode: x.kode, jumlah_terpilih: x.jumlah_terpilih };
+      },
+      async ambilAcakN(n) {
+        wajibAdmin(); const db = load();
+        const pool = db.p.filter((x) => x.dalam_undian);
+        if (!pool.length) throw new Error('UNDIAN_KOSONG');
+        for (let i = pool.length - 1; i > 0; i--) { const j = crypto.getRandomValues(new Uint32Array(1))[0] % (i + 1); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+        const pilih = pool.slice(0, n); const t = new Date().toISOString();
+        pilih.forEach((x) => { x.jumlah_terpilih++; x.terakhir_terpilih = t; });
+        pilih.slice().reverse().forEach((x) => db.r.push({ id: db.r.length + 1, presensi_id: x.id, diambil_pada: t }));
+        save(db);
+        return pilih.map((x, i) => ({ urutan: i + 1, id: x.id, nama: x.nama, kategori: x.kategori, satker: x.satker, kode: x.kode, jumlah_terpilih: x.jumlah_terpilih }));
       },
       async aturUndian(id, dalam) {
         wajibAdmin(); const db = load(); const x = db.p.find((y) => y.id === id);
