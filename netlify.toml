@@ -1,0 +1,3 @@
+[build]
+  publish = "public"
+# Rute /random dan header ada di public/_redirects dan public/_headers
